@@ -1,10 +1,9 @@
-const { useMainPlayer } = require('discord-player');
-const { MessageFlags, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } = require('discord.js');
+const { MessageFlags } = require('discord.js');
 
 module.exports = {
     data: {
         name: 'play',
-        description: 'Searches for a song and lets you choose the exact version',
+        description: 'Searches and plays a track using Lavalink',
         options: [
             {
                 name: 'query',
@@ -19,7 +18,7 @@ module.exports = {
 
         if (!voiceChannel) {
             return interaction.reply({
-                content: 'You must be in a voice channel in a server for me to join you.',
+                content: 'You must be in a voice channel for me to join you.',
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -27,97 +26,55 @@ module.exports = {
         const query = interaction.options.getString('query');
         await interaction.deferReply();
 
-        const player = useMainPlayer();
+        // Grab the LavaShark instance we attached to the client in index.js
+        const lavashark = interaction.client.lavashark;
 
         try {
-            // Step 1: Search the internet without automatically playing
-            const searchResult = await player.search(query, {
-                requestedBy: interaction.user,
+            // 1. Create or get the player connection for this specific Discord server
+            const player = lavashark.createPlayer({
+                guildId: interaction.guild.id,
+                voiceChannelId: voiceChannel.id,
+                textChannelId: interaction.channel.id,
+                selfDeaf: true
             });
 
-            if (!searchResult || !searchResult.hasTracks()) {
+            // 2. Connect the bot to the voice channel
+            await player.connect();
+
+            // 3. Search for the track
+            // Lavalink requires explicit prefixes for text searches so it knows which platform to scrape
+            const searchQuery = query.startsWith('http') ? query : `ytsearch:${query}`;
+            const res = await lavashark.search(searchQuery, interaction.user);
+
+            // 4. Handle the different types of responses Lavalink might return
+            if (res.loadType === 'LOAD_FAILED') {
+                return interaction.editReply('Lavalink failed to extract this track. It might be age-restricted or blocked.');
+            } else if (res.loadType === 'NO_MATCHES') {
                 return interaction.editReply('No results found for that query.');
             }
 
-            // If the user pasted a direct URL, bypass the menu and just play it
-            if (query.startsWith('http')) {
-                const { track } = await player.play(voiceChannel, searchResult.tracks[0], {
-                    nodeOptions: { metadata: interaction }
-                });
-                return interaction.editReply(`🎶 Queued: **${track.title}**`);
+            // 5. Queue the music and play
+            if (res.loadType === 'PLAYLIST_LOADED') {
+                player.queue.add(res.tracks);
+                if (!player.playing) await player.play();
+                return interaction.editReply(`👀 Queued playlist: **${res.playlistInfo.name}** (${res.tracks.length} tracks)`);
             }
 
-            // Step 2: Build the interactive dropdown menu using the top 5 results
-            const tracks = searchResult.tracks.slice(0, 5);
-            const options = tracks.map((track, index) => ({
-                label: track.title.substring(0, 100), // Discord enforces a 100-character limit
-                description: `[${track.source}] ${track.author}`.substring(0, 100),
-                value: index.toString(),
-            }));
-
-            const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId('track_select')
-                .setPlaceholder('Select the exact track to play...')
-                .addOptions(options);
-
-            const row = new ActionRowBuilder().addComponents(selectMenu);
-
-            // Send the menu to the user
-            const response = await interaction.editReply({
-                content: `Found multiple results for **${query}**. Make a selection:`,
-                components: [row],
-            });
-
-            // Step 3: Wait for the user to select an option
-            const collectorFilter = i => i.user.id === interaction.user.id;
-            let confirmation;
-
-            try {
-                // Scope 1: Isolate the UI Timeout
-                confirmation = await response.awaitMessageComponent({
-                    filter: collectorFilter,
-                    time: 30_000,
-                    componentType: ComponentType.StringSelect,
-                });
-            } catch (err) {
-                // This will ONLY run if the user actually times out
-                return interaction.editReply({
-                    content: 'Selection timed out. Run the command again if you still want to play a track.',
-                    components: []
-                });
+            // Check if tracks exist before accessing [0]
+            if (!res.tracks || res.tracks.length === 0) {
+                return interaction.editReply('No results found for that query.');
             }
 
-            // Step 4: Handle the selection and update UI
-            const selectedIndex = parseInt(confirmation.values[0], 10);
-            const chosenTrack = tracks[selectedIndex];
+            const track = res.tracks[0];
+            player.queue.add(track);
 
-            console.log('--- TRACK SELECTION DEBUG ---');
-            console.log(`Title:  ${chosenTrack.title}`);
-            console.log(`Source: ${chosenTrack.source}`);
-            console.log(`URL:    ${chosenTrack.url}`);
-            console.log('-----------------------------');
+            if (!player.playing) await player.play();
 
-            await confirmation.update({
-                content: `⏳ Loading your selection: **${chosenTrack.title}**...`,
-                components: []
-            });
-
-            // Step 5: Execute Audio with its own error boundary
-            try {
-                await player.play(voiceChannel, chosenTrack, {
-                    nodeOptions: { metadata: interaction }
-                });
-
-                await interaction.followUp(`🎶 Now playing: **${chosenTrack.title}**`);
-            } catch (audioError) {
-                // If it joins and leaves, the real reason will print here
-                console.error('Audio extraction/playback failed:', audioError);
-                await interaction.followUp('I joined the channel, but failed to extract the audio stream. Check the terminal logs.');
-            }
+            return interaction.editReply(`👀 Queued: **${track.title}**`);
 
         } catch (error) {
-            console.error('Error in search and select execution:', error);
-            await interaction.editReply('An error occurred while fetching the tracks. Check your terminal.');
+            console.error('Error in play command:', error);
+            await interaction.editReply('An error occurred while communicating with the audio server.');
         }
     }
 };

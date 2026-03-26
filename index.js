@@ -1,55 +1,47 @@
-// Force Node's internal DNS to skip IPv6 lookups to prevent Docker network timeouts
-require('node:dns').setDefaultResultOrder('ipv4first');
-
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection, REST, Routes, MessageFlags } = require('discord.js');
+const { LavaShark } = require('lavashark');
 const fs = require('fs');
 const path = require('path');
-const { Player } = require('discord-player');
-const { YoutubeiExtractor } = require("discord-player-youtubei");
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessages
     ],
 });
 
-// setting up the music bot player framework
-const player = new Player(client);
-const { DefaultExtractors } = require('@discord-player/extractor');
-
-(async () => {
-    try {
-        // 1. Register the advanced YouTube API extractor first
-        await player.extractors.register(YoutubeiExtractor, {});
-
-        // 2. Filter out the broken default YouTube extractor to avoid conflicts
-        const filteredExtractors = DefaultExtractors.filter(ext => ext.name !== 'YouTubeExtractor');
-
-        // 3. Load the remaining default extractors (Spotify, SoundCloud, Apple, etc.)
-        await player.extractors.loadMulti(filteredExtractors);
-
-        console.log('debug: Default extractors + YoutubeiExtractor loaded successfully.');
-    } catch (err) {
-        console.error('debug: Failed to load extractors:', err);
+// Initialize LavaShark
+client.lavashark = new LavaShark({
+    nodes: [
+        {
+            id: 'LocalNode',
+            hostname: 'lavalink', // match docker compose service name
+            port: 2333,
+            password: 'youshallnotpass'
+        }
+    ],
+    sendWS: (guildId, payload) => {
+        client.guilds.cache.get(guildId)?.shard.send(payload);
     }
-})();
-// ========== for debugging. not really importnnt ===============
-
-// audio player error while playing a track
-player.events.on('playerError', (queue, error) => {
-    console.log(`debug: Audio Player error: ${error.message}`);
 });
 
-// exception during queue
-player.events.on('error', (queue, error) => {
-    console.log(`debug: general Queue Error: ${error.message}`);
+// Lavalink Event Listeners (To prove it connects)
+client.lavashark.on('nodeConnect', (node) => {
+    console.log(`[LavaShark] Successfully connected to Lavalink Node: ${node.id}`);
 });
 
-// bot disconnected
-player.events.on('disconnect', (queue) => {
-    console.log('debug: bot was disconnected from the voice channel.');
+client.lavashark.on('nodeDisconnect', (node, code, reason) => {
+    console.warn(`[LavaShark] Node ${node.id} disconnected. Code: ${code}, Reason: ${reason}`);
+});
+
+client.lavashark.on('nodeError', (node, error) => {
+    console.error(`[LavaShark] Error on node ${node.id}:`, error.message);
+});
+
+client.lavashark.on('error', (error) => {
+    console.error('[LavaShark] Unhandled shark error:', error);
 });
 
 client.commands = new Collection();
@@ -73,22 +65,23 @@ for (const file of commandFiles) {
     }
 }
 
-client.once('clientReady', async () => {
+client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
-    // discord rest api to register commands
+    // start Lavalink connection after Discord is ready
+    client.lavashark.start(String(client.user.id));
+
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     try {
-        console.log(`started refreshing ${commandsData.length} application commands.`);
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: commandsData }
-        );
+        await rest.put(Routes.applicationCommands(client.user.id), { body: commandsData });
         console.log('successfully reloaded application commands.');
     } catch (error) {
         console.error('error registering commands:', error);
     }
 });
+
+// intercept raw voice data and feed to LavaLink
+client.on('raw', (packet) => client.lavashark.handleVoiceUpdate(packet));
 
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;

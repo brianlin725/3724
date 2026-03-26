@@ -1,10 +1,41 @@
 services:
+  # audio server
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4 # v4 image
+    container_name: lavalink
+    restart: unless-stopped
+    volumes:
+      - ./application.yml:/opt/Lavalink/application.yml
+    ports:
+      - 2333:2333
+    # making sure lavalink is awake
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "--header=Authorization: youshallnotpass", "http://localhost:2333/version" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - bot-network
+
+  # discord-bot
   discord-bot:
     build: .
+    container_name: discord-bot
     env_file:
       - .env
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
-    # Force Node to use IPv4 first to bypass the Alpine network hang
-    command: node --dns-result-order=ipv4first --watch index.js
+    command: node --watch index.js
+    depends_on:
+      lavalink:
+        # boots lavalink before bot
+        condition: service_healthy
+
+    networks:
+      - bot-network
+
+networks:
+  bot-network:
+    driver: bridge
