@@ -1,0 +1,10 @@
+services:
+  discord-bot:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    # Force Node to use IPv4 first to bypass the Alpine network hang
+    command: node --dns-result-order=ipv4first --watch index.js
