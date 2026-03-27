@@ -1,3 +1,4 @@
+require('node:dns').setDefaultResultOrder('ipv4first');
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection, REST, Routes, MessageFlags } = require('discord.js');
 const { LavaShark } = require('lavashark');
@@ -33,7 +34,9 @@ client.lavashark.on('nodeConnect', (node) => {
 });
 
 client.lavashark.on('nodeDisconnect', (node, code, reason) => {
-    console.warn(`[LavaShark] Node ${node.id} disconnected. Code: ${code}, Reason: ${reason}`);
+    console.warn(`[LavaShark] Node ${node.id} disconnected. Code: ${code}. Attempting to reconnect...`);
+    // Manually trigger a reconnect if the library's auto-reconnect is lagging
+    setTimeout(() => node.connect(), 5000);
 });
 
 client.lavashark.on('nodeError', (node, error) => {

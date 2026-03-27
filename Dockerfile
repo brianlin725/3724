@@ -2,7 +2,7 @@
 FROM node:22-alpine
 
 # 2. Add python3 so youtube-dl-exec can install and run correctly
-RUN apk add --no-cache python3 ffmpeg libsodium
+RUN apk add --no-cache python3 ffmpeg libsodium ttf-dejavu
 
 WORKDIR /usr/src/app
 

@@ -29,60 +29,69 @@ async function createTextGif(gifType, textOverlay) {
     const inputGif = path.join(tempDir, `input_${timestamp}.gif`);
     const outputGif = path.join(tempDir, `output_${timestamp}.gif`);
 
-    const gifResponse = await axios.get(gifUrl, { responseType: 'stream' });
-    const writer = fs.createWriteStream(inputGif);
-    gifResponse.data.pipe(writer);
+    try {
 
-    await new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-    });
+        const gifResponse = await axios.get(gifUrl, { responseType: 'stream' });
+        const writer = fs.createWriteStream(inputGif);
+        gifResponse.data.pipe(writer);
 
-    // getting dimensions
-    const metadata = await new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(inputGif, (err, data) => {
-            if (err) return reject(new Error(`ffprobe error: ${err.message}`));
-            resolve(data);
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
         });
-    });
 
-    const videoStream = metadata.streams.find(s => s.codec_type === 'video');
-    if (!videoStream || !videoStream.width) throw new Error('Could not read GIF dimensions');
+        // getting dimensions
+        const metadata = await new Promise((resolve, reject) => {
+            ffmpeg.ffprobe(inputGif, (err, data) => {
+                if (err) return reject(new Error(`ffprobe error: ${err.message}`));
+                resolve(data);
+            });
+        });
 
-    const gifWidth = videoStream.width;
-    let calculatedFontsize = (gifWidth / textOverlay.length) * 1.5;
-    const finalFontsize = Math.floor(Math.max(18, Math.min(calculatedFontsize, 80)));
+        const videoStream = metadata.streams.find(s => s.codec_type === 'video');
+        if (!videoStream || !videoStream.width) throw new Error('Could not read GIF dimensions');
 
-    // ffmpeg to process
-    await new Promise((resolve, reject) => {
-        const safeText = textOverlay.replace(/'/g, "\\'");
-        const fontfilePath = '/System/Library/Fonts/HelveticaNeue.ttc';
+        const gifWidth = videoStream.width;
+        let calculatedFontsize = (gifWidth / textOverlay.length) * 1.5;
+        const finalFontsize = Math.floor(Math.max(18, Math.min(calculatedFontsize, 80)));
 
-        const filterString =
-            `[0:v]split[original][blur];` +
-            `[blur]crop=iw:${finalFontsize + 30}:0:ih-${finalFontsize + 40},boxblur=5:1[blurred];` +
-            `[original][blurred]overlay=0:H-${finalFontsize + 40}[v1];` +
-            `[v1]drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2-2:y=h-th-22,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2+2:y=h-th-22,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2:y=h-th-24,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2:y=h-th-20,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2-2:y=h-th-20,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2+2:y=h-th-20,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2-2:y=h-th-24,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2+2:y=h-th-24,` +
-            `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=white:fontsize=${finalFontsize}:x=(w-text_w)/2:y=h-th-22`;
+        // ffmpeg to process
+        await new Promise((resolve, reject) => {
+            const safeText = textOverlay.replace(/'/g, "\\'");
+            const fontfilePath = '/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf';
 
-        ffmpeg(inputGif)
-            .outputOptions(['-vf', filterString, '-c:v', 'gif'])
-            .output(outputGif)
-            .on('end', resolve)
-            .on('error', (err) => reject(new Error(`ffmpeg processing error: ${err.message}`)))
-            .run();
-    });
+            const filterString =
+                `[0:v]split[original][blur];` +
+                `[blur]crop=iw:${finalFontsize + 30}:0:ih-${finalFontsize + 40},boxblur=5:1[blurred];` +
+                `[original][blurred]overlay=0:H-${finalFontsize + 40}[v1];` +
+                `[v1]drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2-2:y=h-th-22,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2+2:y=h-th-22,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2:y=h-th-24,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2:y=h-th-20,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2-2:y=h-th-20,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2+2:y=h-th-20,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2-2:y=h-th-24,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=black:fontsize=${finalFontsize}:x=(w-text_w)/2+2:y=h-th-24,` +
+                `drawtext=text='${safeText}':fontfile=${fontfilePath}:fontcolor=white:fontsize=${finalFontsize}:x=(w-text_w)/2:y=h-th-22`;
 
-    // celanup file
-    fs.unlinkSync(inputGif);
-    return outputGif;
+            ffmpeg(inputGif)
+                .outputOptions(['-vf', filterString, '-c:v', 'gif'])
+                .output(outputGif)
+                .on('end', resolve)
+                .on('error', (err) => reject(new Error(`ffmpeg processing error: ${err.message}`)))
+                .run();
+        });
+
+        // celanup file
+        fs.unlinkSync(inputGif);
+        return outputGif;
+    } catch (error) {
+        console.error("GIF Generation Error:", error);
+    } finally {
+        if (fs.existsSync(inputGif)) {
+            fs.unlinkSync(inputGif);
+        }
+    }
 }
 
 module.exports = { createTextGif };
