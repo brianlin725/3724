@@ -14,13 +14,19 @@ if (!fs.existsSync(tempDir)) {
 async function createTextGif(gifType, textOverlay) {
     // fetch from gify
     const searchResponse = await axios.get('https://api.giphy.com/v1/gifs/search', {
-        params: { api_key: GIPHY_KEY, q: gifType, rating: 'pg-13', limit: 50 },
+        params: { api_key: GIPHY_KEY, q: gifType, rating: 'pg-13', limit: 30 },
     });
 
     const gifs = searchResponse.data.data;
     if (!gifs || gifs.length === 0) throw new Error('No GIF found for that search term.');
 
-    const randomGif = gifs[Math.floor(Math.random() * gifs.length)];
+    // biased selection
+    const r = Math.random();
+
+    // higher the power, the stronger the bias towards the first
+    const biasedIdx = Math.floor(Math.pow(r, 2) * gifs.length);
+
+    const randomGif = gifs[biasedIdx];
     const gifUrl = randomGif.images.original.url;
     if (!gifUrl) throw new Error('Could not extract GIF URL.');
 
