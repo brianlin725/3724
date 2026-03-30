@@ -12,7 +12,7 @@ module.exports = {
         ],
     },
     async execute(interaction) {
-        const game = interaction.options.getString('game');
+        let game = interaction.options.getString('game');
         const gifType = interaction.options.getString('giftype');
 
         game = game.replace(/<@!?(\d+)>/g, (match, id) => {
