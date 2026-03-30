@@ -15,6 +15,11 @@ module.exports = {
         const game = interaction.options.getString('game');
         const gifType = interaction.options.getString('giftype');
 
+        game = game.replace(/<@!?(\d+)>/g, (match, id) => {
+            const user = interaction.client.users.cache.get(id);
+            return user ? `@${user.username}` : match;
+        });
+
         await interaction.deferReply();
 
         try {
