@@ -15,7 +15,7 @@ module.exports = {
         let game = interaction.options.getString('game');
         const gifType = interaction.options.getString('giftype');
 
-        // in case someone tags a user, it doesn't show the id
+        // in case someone tags a user, it doesn't show the
         game = game.replace(/<@!?(\d+)>/g, (match, id) => {
             const user = interaction.client.users.cache.get(id);
             return user ? `@${user.username}` : match;
@@ -38,16 +38,8 @@ module.exports = {
             fs.unlinkSync(outputGifPath);
 
         } catch (error) {
-            const errorMessage = `crash log:**\n\`\`\`js\n${error.message}\n\`\`\``;
-
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: errorMessage, files: [] });
-            } else {
-                await interaction.reply({ content: errorMessage, ephemeral: true });
-            }
-
-            //console.error('Error in geton command:', error);
-            //await interaction.editReply('An error occurred while creating the gif. Try a different search term');
+            console.error('Error in geton command:', error);
+            await interaction.editReply('An error occurred while creating the gif. Try a different search term');
         }
     }
 };
