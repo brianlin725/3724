@@ -15,6 +15,7 @@ module.exports = {
         let game = interaction.options.getString('game');
         const gifType = interaction.options.getString('giftype');
 
+        // in case someone tags a user, it doesn't show the id
         game = game.replace(/<@!?(\d+)>/g, (match, id) => {
             const user = interaction.client.users.cache.get(id);
             return user ? `@${user.username}` : match;
