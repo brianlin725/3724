@@ -14,12 +14,18 @@ module.exports = {
     async execute(interaction) {
         let game = interaction.options.getString('game');
         const gifType = interaction.options.getString('giftype');
-
-        // in case someone tags a user, it doesn't show the
-        game = game.replace(/<@!?(\d+)>/g, (match, id) => {
-            const user = interaction.client.users.cache.get(id);
-            return user ? `@${user.username}` : match;
+        // replace user tag with randomly generated ip
+        game = game.replace(/<@!?(\d+)>/g, () => {
+            return (Math.floor(Math.random() * 255) + 1) + "." + 
+                   Math.floor(Math.random() * 256) + "." + 
+                   Math.floor(Math.random() * 256) + "." + 
+                   Math.floor(Math.random() * 256);
         });
+        // in case someone tags a user, it doesn't show the
+        //game = game.replace(/<@!?(\d+)>/g, (match, id) => {
+        //    const user = interaction.client.users.cache.get(id);
+        //    return user ? `@${user.username}` : match;
+        //});
 
         await interaction.deferReply();
 
