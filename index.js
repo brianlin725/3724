@@ -120,6 +120,7 @@ for (const file of eventFiles) {
         client.on(event.name, (...args) => event.execute(...args));
     }
 }
+console.log('foo'); // ignore this
 
 // global error handler. everything not handled gets caught here.
 client.on('error', console.error);
