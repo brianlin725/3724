@@ -38,8 +38,16 @@ module.exports = {
             fs.unlinkSync(outputGifPath);
 
         } catch (error) {
-            console.error('Error in geton command:', error);
-            await interaction.editReply('An error occurred while creating the gif. Try a different search term');
+            const errorMessage = `crash log:**\n\`\`\`js\n${error.message}\n\`\`\``;
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: errorMessage, files: [] });
+            } else {
+                await interaction.reply({ content: errorMessage, ephemeral: true });
+            }
+
+            //console.error('Error in geton command:', error);
+            //await interaction.editReply('An error occurred while creating the gif. Try a different search term');
         }
     }
 };
