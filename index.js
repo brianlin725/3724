@@ -97,7 +97,7 @@ client.on('interactionCreate', async interaction => {
         await command.execute(interaction);
     } catch (error) {
         console.error(`error executing ${interaction.commandName}:`, error);
-        const errorMessage = 'there was an error while executing this command!';
+        const errorMessage = 'There was an error while executing this command. Check logs';
 
         if (interaction.replied || interaction.deferred) {
             await interaction.editReply({ content: errorMessage, flags: MessageFlags.Ephemeral });
