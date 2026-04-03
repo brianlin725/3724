@@ -13,7 +13,7 @@ This project is a testament to the power of robust containerization and API leve
 Before we embark on this exciting journey, it is paramount that you gather your digital keys to unlock the matrix of APIs. You will need:
 
 1. **A Discord Bot Token** — This is the lifeblood of your application! You can easily acquire this by navigating to the bustling hub of the [Discord Developer Portal](https://discord.com/developers/applications). Simply create a new application, navigate to the "Bot" tab, and reset the token. Keep this safe! 🤫
-2. **A Giphy API Key** — To harness the visual power of moving images, you must venture to the [Giphy Developers](https://developers.giphy.com/) dashboard. Create an app and secure your unique API key. 🖼️
+2. **A Giphy API Key** — To harness the visual power of moving images, you must venture to the [Giphy Developers](https://developers.giphy.com/) dashboard. Create an app and secure your unique API key. 🖼️ Make sure to select API and not SDK.
 
 ## ⚙️ Step-by-Step Deployment Guide
 
@@ -21,8 +21,8 @@ Before we embark on this exciting journey, it is paramount that you gather your 
 In the root directory of your project, you must meticulously create a hidden file named exactly `.env`. This file will serve as the secure vault for your credentials. Please populate it using the following format:
 
 ```env
-DISCORD_TOKEN=your_super_secret_discord_token_here
-GIPHY_KEY=your_super_secret_giphy_key_here
+DISCORD_TOKEN=nice_try_github_scanners_but_im_not_that_stupid
+GIPHY_KEY=hunter2
 ```
 *Note: It is crucial to never commit your `.env` file to a public repository, as that would compromise your robust security posture!* 🛡️
 
